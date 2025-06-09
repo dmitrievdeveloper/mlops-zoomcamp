@@ -1,0 +1,41 @@
+services:
+  airflow:
+    container_name: airflow-container
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./tmp:/opt/airflow/tmp
+      - ./data:/opt/airflow/data
+      - ./mlflow_data:/opt/airflow/mlflow_data
+    ports:
+      - "8080:8080"
+    #command: bash -c "airflow standalone"
+    command: >
+      bash -c "airflow standalone"
+    user: "${AIRFLOW_UID:-50000}:0"
+    # Не перезапускать после выполнения
+    restart: on-failure
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000  # Используем имя сервиса
+    command: bash -c "mlflow server --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port 5000"
+    volumes:
+      - ./mlflow_data:/mlflow_data/
+
+networks:
+  default:
+    driver: bridge
